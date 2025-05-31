@@ -2,24 +2,27 @@ FROM nvidia/cuda:12.1.1-cudnn8-runtime-ubuntu22.04
 
 ENV DEBIAN_FRONTEND=noninteractive
 
+# Installe Python 3.9 manuellement
 RUN apt-get update && apt-get install -y --no-install-recommends \
-    python3 python3-pip git ffmpeg wget curl \
-    build-essential cmake libopenblas-dev libomp-dev python3-dev \
-    ca-certificates \
+    python3.9 python3.9-dev python3.9-distutils \
+    git ffmpeg wget curl \
+    build-essential cmake libopenblas-dev libomp-dev ca-certificates \
     && apt-get clean && rm -rf /var/lib/apt/lists/*
 
-RUN python3 -m pip install --upgrade pip
+# Configure python3 et pip par défaut sur Python 3.9
+RUN ln -sf python3.9 /usr/bin/python3 && \
+    curl -sS https://bootstrap.pypa.io/get-pip.py | python3.9
 
-# PyTorch stable et compatible avec WhisperX
+# Installe torch compatible CUDA 12.1 (cu121) + WhisperX + dépendances
+RUN pip install --upgrade pip
+
 RUN pip install torch==2.3.1+cu121 torchvision==0.18.1+cu121 torchaudio==2.3.1+cu121 \
     --extra-index-url https://download.pytorch.org/whl/cu121
 
-# WhisperX dernière version
 RUN pip install git+https://github.com/m-bain/whisperx.git
 
-# Dépendances complémentaires
 RUN pip install \
-    runpod==1.7.10 \
+    runpod==1.7.0 \
     pydub \
     cog \
     speechbrain==0.5.16 \
