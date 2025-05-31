@@ -1,34 +1,32 @@
-FROM nvidia/cuda:12.1.1-cudnn8-runtime-ubuntu22.04
+FROM ubuntu:22.04
 
 ENV DEBIAN_FRONTEND=noninteractive
 
-# Ajoute le dépôt deadsnakes pour Python 3.9
+# Dépendances système
 RUN apt-get update && apt-get install -y --no-install-recommends \
-    software-properties-common && \
-    add-apt-repository ppa:deadsnakes/ppa && \
-    apt-get update && apt-get install -y --no-install-recommends \
-    python3.9 python3.9-dev python3.9-distutils \
-    git ffmpeg wget curl \
-    build-essential cmake libopenblas-dev libomp-dev ca-certificates \
+    python3.9 python3.9-dev python3.9-distutils python3-pip \
+    git ffmpeg wget curl build-essential cmake \
+    libopenblas-dev libomp-dev ca-certificates \
     && apt-get clean && rm -rf /var/lib/apt/lists/*
 
-# Configure python3 et pip sur Python 3.9
+# Fix Python/Pip
 RUN ln -sf /usr/bin/python3.9 /usr/bin/python3 && \
+    ln -sf /usr/bin/pip3 /usr/bin/pip && \
     curl -sS https://bootstrap.pypa.io/get-pip.py | python3
 
-# Pip upgrade
-RUN python3 -m pip install --upgrade pip
+# Upgrade pip
+RUN pip install --upgrade pip
 
-# Torch 2.3.1 + cu121 compatible Python 3.9
+# PyTorch + cu121 (compatible avec GPU RunPod)
 RUN pip install torch==2.3.1+cu121 torchvision==0.18.1+cu121 torchaudio==2.3.1+cu121 \
     --extra-index-url https://download.pytorch.org/whl/cu121
 
-# WhisperX
+# WhisperX (dernière version)
 RUN pip install git+https://github.com/m-bain/whisperx.git
 
-# Dépendances complémentaires
+# Autres dépendances
 RUN pip install \
-    runpod==1.7.0 \
+    runpod==1.7.10 \
     pydub \
     cog \
     speechbrain==0.5.16 \
