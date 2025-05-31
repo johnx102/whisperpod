@@ -1,56 +1,29 @@
-FROM runpod/base:0.6.2-cuda12.4.1
+# Base officielle NVIDIA avec CUDA 12.1 + cuDNN8, compatible torch+cu121
+FROM nvidia/cuda:12.1.1-cudnn8-runtime-ubuntu22.04
 
-SHELL ["/bin/bash", "-c"]
-WORKDIR /
+# Mise à jour et installation des paquets de base
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    python3 python3-pip git ffmpeg wget curl \
+    build-essential cmake libopenblas-dev libomp-dev python3-dev \
+    && apt-get clean && rm -rf /var/lib/apt/lists/*
 
-# Update and upgrade the system packages (Worker Template)
-RUN apt-get update && \
-    apt-get upgrade -y && \
-    apt-get install -y --no-install-recommends ffmpeg wget git libcudnn9 libcudnn9-dev build-essential python3-dev cmake libopenblas-dev libomp-dev && \
-    apt-get clean && \
-    rm -rf /var/lib/apt/lists/*
+# Mise à jour de pip
+RUN python3 -m pip install --upgrade pip
 
-# Create cache directories
-RUN mkdir -p /cache/models
-RUN mkdir -p /root/.cache/torch
+# Installation des bibliothèques PyTorch compatibles CUDA 12.1
+RUN pip install torch==2.3.0+cu121 torchvision==0.18.0+cu121 torchaudio==2.3.0+cu121 \
+    --extra-index-url https://download.pytorch.org/whl/cu121
 
-# Upgrade pip and install base Python packages needed early
-RUN python3 -m pip install --upgrade pip hf_transfer numpy==1.24.2
+# Installation de WhisperX dernière version depuis GitHub
+RUN pip install git+https://github.com/m-bain/whisperx.git
 
-# Install PyTorch from source
-RUN git clone --recursive --branch v2.3.1 https://github.com/pytorch/pytorch.git /pytorch
-WORKDIR /pytorch
-
-ENV USE_CUDA=1
-ENV USE_CUDNN=1
-ENV TORCH_CUDA_ARCH_LIST="7.5;8.0;8.6;8.9;9.0"
-ENV MAX_JOBS=4
-
-RUN python3 setup.py install
-
-# Install TorchVision and TorchAudio from source
-RUN python3 -m pip install 'git+https://github.com/pytorch/vision.git@v0.18.1'
-RUN python3 -m pip install 'git+https://github.com/pytorch/audio.git@v2.3.1'
-
-WORKDIR /
-
-# Copy only requirements file first to leverage Docker cache
-COPY builder/requirements.txt /builder/requirements.txt
-
-# Install remaining Python dependencies
-RUN python3 -m pip install -r /builder/requirements.txt
-
-# Copy the local VAD model to the expected location
-COPY models/whisperx-vad-segmentation.bin /root/.cache/torch/whisperx-vad-segmentation.bin
-
-# Copy the rest of the builder files
-COPY builder /builder
-
-# Download Faster Whisper Models
-RUN chmod +x /builder/download_models.sh
-RUN /builder/download_models.sh
-
-# Copy source code
-COPY src .
-
-CMD [ "python3", "-u", "/rp_handler.py" ]
+# Autres dépendances utiles à ton projet
+RUN pip install \
+    runpod==1.7.0 \
+    pydub \
+    cog \
+    speechbrain==0.5.16 \
+    huggingface-hub \
+    cryptography<43.0.0 \
+    numpy==1.24.2 \
+    ctranslate2==4.3.1
